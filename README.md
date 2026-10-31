@@ -652,7 +652,7 @@ Service Worker 注册也改为带参数，避免离线壳注册失败。
 
 ## 十五、源码仓库与 Release
 
-代码已托管到 GitHub（**私有**仓库）：`https://github.com/yinanqing127/workbuddy-checkin`
+代码已托管到 GitHub（**公开**仓库）：`https://github.com/yinanqing127/workbuddy-checkin`
 
 ### 15.1 仓库里有什么
 
@@ -717,39 +717,40 @@ APK 成品不入库（里面编着地址与 sharecode），走 Release 附件分
 
 ---
 
-## 十六、把仓库转为公开的操作清单
+## 十六、开源状态与安全说明
 
-> 当前状态：**已私有**。敏感值已从工作区与全部历史中移除（密钥、部署地址、sharecode），
-> 只差最后一步「改可见性」。想公开时按下面顺序做。
+> 现状：仓库已于 2026-10-31 转为**公开**，Secret scanning 与 Push protection 均已开启。
+> 公开前做过一次完整的脱敏 + 历史重写，源码里不含任何私密值。
 
-### 16.1 已完成（无需重做）
+### 16.1 公开前做了什么
 
-1. 签名密钥移出仓库 → `~/workbuddy-keys/upload-key.jks` + `upload-key.pass`，`build.sh` 改读 `WB_KS_PATH` / `WB_KS_PASS`，缺失即报错退出。
-2. 部署地址与 sharecode 从 `src/config.js`、`MainActivity.java` 抽出 → `src/local-endpoint.json` 与 `apk-build/local-url.txt`（均已 `.gitignore`）。
-3. 成品 APK 停止入库（内编着 sharecode），只走 Release 附件。
-4. 用 `git filter-branch --tree-filter` 重写了**全部历史**：删掉密钥与 APK 文件、把历史里的旧域名与 sharecode 替换为占位符，随后 `gc --prune=now` 清理不可达对象。
+1. 签名密钥移出仓库 → `~/workbuddy-keys/upload-key.jks` + `upload-key.pass`，`build.sh` 改读 `WB_KS_PATH` / `WB_KS_PASS`，缺失即报错退出（不再有硬编码口令）。
+2. 部署地址与 sharecode 从 `src/config.js`、`MainActivity.java` 抽出 → `src/local-endpoint.json` 与 `apk-build/local-url.txt`（均已 `.gitignore`，见 15.4）。
+3. 成品 APK 停止入库（二进制里编着地址与 sharecode），只随 Release 分发。
+4. 用 `git filter-branch --tree-filter` 重写了**全部历史**：删掉密钥与 APK 文件、把历史里的旧域名与 sharecode 替换为占位符，随后 `gc --prune=now` 清理不可达对象。旧提交 `8b5ab94` 现在 API 返回 404，已无法取到。
 
-### 16.2 改为公开
+### 16.2 现在仓库里绝对没有的东西
 
-网页：仓库 → **Settings → General → Danger Zone → Change visibility → Make public**，按提示输入仓库名确认。
+| 项 | 说明 |
+| --- | --- |
+| 登录凭证 token / uid / UA | 只存在本机 `config.json`，从未提交 |
+| 签名密钥与口令 | 在 `~/workbuddy-keys/`，仓库里连历史都没有 |
+| 部署域名与 sharecode | 只在 `.gitignore` 的三份本机文件里；源码里是占位符 |
 
-命令行：
+### 16.3 仍然存在的暴露面（公开就必然如此）
 
-```bash
-curl -X PATCH -H "Authorization: token <PAT>" \
-  -d '{"private":false}' \
-  https://api.github.com/repos/yinanqing127/workbuddy-checkin
-```
+| 位置 | 情况 |
+| --- | --- |
+| Release 附件 `Setup-1.5.0.exe` / `.apk` | 这是**可直接使用**的产物，二进制里必然内嵌部署地址与 sharecode，`strings` 可读。想彻底干净只能不发可用产物，或改用「首次启动时手填地址」的交互 |
+| sharecode 本身 | 它只是手机端代理的入口校验，不是密码学意义的密钥。泄露后果是别人能借你的代理跑**他们自己的**签到、消耗你的部署配额；缓解手段是服务端已有的域名白名单 + IP 限速，必要时在手机端换一个新 sharecode 并同步更新两份本机文件 |
+| 旧提交对象 | 已不可达且 API 返回 404；仓库在私有期间从未被 fork，没有副本流出 |
 
-### 16.3 公开后还剩的暴露面
+### 16.4 克隆下来自己用
 
-| 位置 | 情况 | 处理 |
-| --- | --- | --- |
-| Release 的 `Setup-1.5.0.exe` / `.apk` | 构建于脱敏之前，二进制里仍含旧域名与 sharecode（`strings` 可读） | 若要彻底干净：配好 15.4 的三份本地文件后重新 `npm run dist` 与 `build.sh`，删除旧附件、上传新产物 |
-| 旧提交对象 | 强推后已不可达，且仓库全程私有、从未被 fork | 无需处理；如需绝对保证可联系 GitHub Support 清理缓存视图 |
-| sharecode 本身 | 只是手机端代理的入口校验，泄露的后果是别人能借你的代理跑**他们自己的**签到（消耗你的配额） | 建议在手机端服务里换一个新 sharecode，并同步更新两份本地文件 |
+按 15.4 建好三份本机文件（`src/local-endpoint.json`、`apk-build/local-url.txt`、`~/workbuddy-keys/`），
+否则配对码同步与使用统计会提示「尚未配置手机端地址」，APK 会打开占位页面——签到主功能不受影响。
 
-### 16.4 建议同时打开
+### 16.5 维护提示
 
-- Settings → **Code security**：Secret scanning、Push protection（防以后误提交 token）
-- Settings → Branches：给 `main` 加保护规则，禁止强推
+- 默认分支 `main`；发布用 tag `v1.5.0`，Release 附件挂在同名 tag 下。
+- 本地仓库与远端提交 SHA 不同（推送时 github.com 的 HTTPS 被网络代理拦截，改走 REST API 推送，内容逐字节一致）。网络正常后执行 `git fetch origin && git reset --hard origin/main` 即可对齐，之后正常 `git push`。
