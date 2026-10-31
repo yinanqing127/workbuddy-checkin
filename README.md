@@ -647,3 +647,53 @@ Service Worker 注册也改为带参数，避免离线壳注册失败。
   （含"自动创建统计标识""请求带 owner/sharecode""服务不可用时优雅降级""统计请求不改动凭证"）
 - 原有回归：配置层 10 项、API 层 13 项、签到逻辑 9 项全绿
 - 交互断言（Electron 真实渲染）：四个入口"点开 → 再点关闭"全部 `closed(OK)`
+
+---
+
+## 十五、源码仓库与 Release
+
+代码已托管到 GitHub（**私有**仓库）：`https://github.com/yinanqing127/workbuddy-checkin`
+
+### 15.1 仓库里有什么
+
+| 目录 | 内容 |
+| --- | --- |
+| `main.js` / `preload.js` / `src/` | Electron 主进程、预加载桥、签到与配置核心（含本地 API 服务） |
+| `renderer/` | 桌面端界面（`index.html` / `renderer.js` / `styles.css`） |
+| `mobile/` | 手机端 PWA：`server.js` 同源代理、`public/` 前端、`src/proxy-core.js` 签到核心、`scripts/` 测试 |
+| `apk-build/` | Android WebView 壳：`MainActivity.java`、`AndroidManifest.xml`、`build.sh` 构建脚本、自签名密钥、成品 APK |
+| `test/` | 桌面端逻辑 / 接口 / 配置 / 统计测试，`shot.js` 为 Electron 真实渲染截图断言 |
+| `build/installer.nsh` | NSIS 安装器自定义脚本（卸载时清理开机自启项） |
+
+### 15.2 刻意不入库的内容（见 `.gitignore`）
+
+| 排除项 | 原因 |
+| --- | --- |
+| `node_modules/`、`dist/`、`dist_bak_*/` | 依赖与打包产物，体积上百 MB，`npm i` + `npm run dist` 可重新生成 |
+| `apk-build/toolchain/`、`obj/`、`dexout/`、`res/` | 免安装 Android 工具链（约 840 MB）与编译中间文件，`build.sh` 会自动重新下载解压 |
+| `config.json` | 本机配置，**含登录凭证 token**，绝不能提交 |
+| `mobile/.data/` | 手机端服务的运行时统计库 |
+
+安装包不入库，改为挂在 **Release v1.5.0** 的附件里：
+
+- `WorkBuddyCheckin-Setup-1.5.0.exe`（Windows x64，约 80 MB）
+- `WorkBuddyCheckin-1.0.0.apk`（Android，17 KB）
+
+### 15.3 克隆后怎么跑
+
+```bash
+git clone https://github.com/yinanqing127/workbuddy-checkin.git
+cd workbuddy-checkin
+npm install            # 桌面端依赖
+npm start              # 开发运行
+npm run test:all       # 逻辑 + 配置 + 接口测试
+npm run dist           # 打 Windows 安装包（产物在 dist/）
+
+cd mobile && npm start # 手机端服务（默认 3000 端口，需与桌面端错开或改 PORT）
+```
+
+### 15.4 安全提示
+
+`apk-build/upload-key.jks` 是自签名调试密钥，口令写在 `build.sh` 里（`YOUR_KS_PASS`）。
+保留它是为了让重新构建的 APK 能覆盖安装到已装的同款应用（签名一致才允许升级）。
+**如果以后想把仓库转为公开，请先删掉这个密钥文件与 `build.sh` 里的口令，并换一个新密钥重新签名。**
