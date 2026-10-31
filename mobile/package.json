@@ -1,0 +1,16 @@
+{
+  "name": "workbuddy-checkin-mobile",
+  "version": "1.1.0",
+  "description": "WorkBuddy 每日签到手机端 PWA：同源代理转发签到接口，凭证仅存本机浏览器，附带使用统计",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "gen-icons": "node scripts/gen-icons.js",
+    "test:pair": "node scripts/test-pair.js",
+    "test:stats": "node scripts/test-stats.js"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=16"
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "name": "workbuddy-checkin-electron",
+  "version": "1.5.0",
+  "description": "WorkBuddy 每日签到桌面端：一键签到 + 自定义时间自动签到 + 开机自启 + 运行日志 + 会话保活 + 手机端同步与使用统计",
+  "main": "main.js",
+  "author": "WorkBuddy Checkin",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "test:logic": "node test/harness.js",
+    "test:config": "node test/config-test.js",
+    "test:api": "node test/api-test.js",
+    "test:usage": "node test/usage-test.js",
+    "test:all": "node test/harness.js && node test/config-test.js && node test/api-test.js && node test/usage-test.js",
+    "shot": "electron test/shot.js",
+    "make-icon": "node scripts/make-icon.js",
+    "make-winicon": "node scripts/make-winicon.js",
+    "build:icon": "node scripts/make-icon.js && node scripts/make-winicon.js",
+    "dist": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.workbuddy.checkin",
+    "productName": "WorkBuddy 每日签到",
+    "copyright": "Copyright © 2026",
+    "compression": "maximum",
+    "asar": true,
+    "npmRebuild": false,
+    "publish": null,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json",
+      "src/**",
+      "renderer/**",
+      "assets/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "WorkBuddyCheckin-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "WorkBuddy 每日签到",
+      "uninstallDisplayName": "WorkBuddy 每日签到 ${version}",
+      "deleteAppDataOnUninstall": false,
+      "language": "2052",
+      "include": "build/installer.nsh"
+    }
+  }
+}

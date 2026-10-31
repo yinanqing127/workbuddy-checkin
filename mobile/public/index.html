@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#07c160" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="WB 签到" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <title>WorkBuddy 签到</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="title-wrap">
+          <h1>WorkBuddy 签到</h1>
+          <p class="sub" id="sub-line">正在读取状态…</p>
+        </div>
+        <button id="theme-btn" class="icon-btn" title="切换深浅色" aria-label="切换主题">🌗</button>
+      </header>
+
+      <!-- 状态卡 -->
+      <section class="card" id="status-card">
+        <div class="stats">
+          <div class="stat">
+            <span class="num" id="streak">--</span>
+            <span class="lbl">连续签到</span>
+          </div>
+          <div class="stat">
+            <span class="num" id="today">--</span>
+            <span class="lbl">今日积分</span>
+          </div>
+          <div class="stat">
+            <span class="num" id="total">--</span>
+            <span class="lbl">累计积分</span>
+          </div>
+        </div>
+        <p class="msg" id="msg">准备就绪</p>
+        <p class="meta" id="meta-line"></p>
+      </section>
+
+      <!-- 主操作 -->
+      <section class="card action">
+        <button id="checkin-btn" class="btn" disabled>立即签到</button>
+        <div class="mini-links">
+          <button id="credential-btn" class="link">登录凭证</button>
+          <span class="dot">·</span>
+          <button id="refresh-btn" class="link">刷新状态</button>
+        </div>
+      </section>
+
+      <!-- 凭证面板 -->
+      <section class="card panel hidden" id="credential-panel">
+        <div class="panel-head">
+          <h2>登录凭证</h2>
+          <button id="close-credential" class="link">关闭</button>
+        </div>
+
+        <p class="hint">
+          <b>方式一（最省事）</b>：电脑端「设置 → 手机端同步 → 生成配对码」，把出现的 <b>8 位配对码</b> 填到下面。<br />
+          <b>方式二</b>：电脑端「导出凭证码」后粘贴到下方文本框（注意：凭证码很长，转发时容易被截断）。<br />
+          <b>方式三</b>：浏览器 F12 → 网络 → 复制任意请求的 <b>cURL</b>，整段粘进来也会自动抽取。
+        </p>
+
+        <div class="pair-box">
+          <div class="pair-title">用配对码同步（推荐）</div>
+          <label>
+            <span>配对码（8 位字母数字）</span>
+            <input id="pair-input" type="text" inputmode="latin" maxlength="8" placeholder="例如 K7M2QP4X" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+          </label>
+          <button id="pair-btn" class="btn">取回凭证</button>
+          <p class="save-hint" id="pair-hint"></p>
+          <p class="hint dim">配对码 10 分钟内有效、只能领取一次；凭证在服务端只以密文暂存，配对码用完即毁。</p>
+        </div>
+
+        <label>
+          <span>凭证码 / Token / Cookie / cURL</span>
+          <textarea id="cred-input" rows="4" placeholder="把桌面端导出的凭证码，或 eyJ... 的 token，或 k=v; k2=v2 的 Cookie 整段粘进来"></textarea>
+        </label>
+
+        <label>
+          <span>uid（用 Cookie 方式时可留空）</span>
+          <input id="uid-input" type="text" placeholder="你的用户 ID（X-User-Id），可留空" />
+        </label>
+
+        <label>
+          <span>域名</span>
+          <select id="domain-input">
+            <option value="www.codebuddy.cn">www.codebuddy.cn</option>
+            <option value="www.workbuddy.cn">www.workbuddy.cn</option>
+          </select>
+        </label>
+
+        <div class="row">
+          <button id="save-cred-btn" class="btn">保存并使用</button>
+        </div>
+        <p class="save-hint" id="cred-hint"></p>
+        <p class="hint dim">凭证仅保存在本机浏览器（localStorage），不会上传到任何服务器。</p>
+      </section>
+
+      <footer class="footer">本地打卡 · 数据仅存于本机浏览器 · 可"添加到主屏幕"当 App 用</footer>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

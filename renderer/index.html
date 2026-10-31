@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src 'self' http://127.0.0.1:3000; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    />
+    <title>WorkBuddy 每日签到</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="header-text">
+          <h1>WorkBuddy 每日签到</h1>
+          <p class="sub" id="sub-line">正在读取状态…</p>
+        </div>
+        <button id="settings-btn" class="settings-btn" title="打开设置（不影响已保存的登录凭证）">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 6a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"
+            />
+            <path
+              fill="currentColor"
+              d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.5-2-3.4-2.3.9a7.6 7.6 0 0 0-1.7-1L15 3H9l-.4 2.9c-.6.2-1.2.6-1.7 1L4.6 6l-2 3.4 2 1.5a7.7 7.7 0 0 0 0 2l-2 1.5 2 3.4 2.3-.9c.5.4 1.1.8 1.7 1L9 21h6l.4-2.9c.6-.2 1.2-.6 1.7-1l2.3.9 2-3.4-2-1.6z"
+            />
+          </svg>
+          <span>设置</span>
+        </button>
+      </header>
+
+      <!-- 状态卡 -->
+      <section class="card" id="status-card">
+        <div class="stats">
+          <div class="stat">
+            <span class="num" id="streak">--</span>
+            <span class="lbl">连续签到</span>
+          </div>
+          <div class="stat">
+            <span class="num" id="today">--</span>
+            <span class="lbl">今日积分</span>
+          </div>
+          <div class="stat">
+            <span class="num" id="total">--</span>
+            <span class="lbl">累计积分</span>
+          </div>
+        </div>
+        <p class="msg" id="msg">准备就绪</p>
+        <p class="meta" id="meta-line"></p>
+      </section>
+
+      <!-- 主操作 -->
+      <section class="card action">
+        <button id="checkin-btn" class="btn" disabled>立即签到</button>
+        <button id="retry-btn" class="btn btn-retry hidden">重试</button>
+        <div class="mini-links">
+          <button id="logs-btn" class="link">运行日志</button>
+          <span class="dot">·</span>
+          <button id="credential-btn" class="link">登录凭证</button>
+          <span class="dot">·</span>
+          <button id="stats-btn" class="link">使用统计</button>
+        </div>
+      </section>
+
+      <!-- 设置面板：只处理偏好，绝不读取/索取 token -->
+      <section class="card panel hidden" id="settings-panel">
+        <div class="panel-head">
+          <h2>设置</h2>
+          <button id="close-settings-panel" class="link">关闭</button>
+        </div>
+
+        <div class="field">
+          <div class="field-main">
+            <span class="field-title">自动签到</span>
+            <span class="field-desc">到点自动签到，无需打开窗口</span>
+          </div>
+          <label class="switch slim">
+            <input id="auto-checkin-input" type="checkbox" />
+            <span class="track"></span>
+          </label>
+        </div>
+
+        <div class="field">
+          <div class="field-main">
+            <span class="field-title">每天签到时间</span>
+            <span class="field-desc">支持任意时间；修改后立即按新时间调度</span>
+          </div>
+          <input id="checkin-time-input" type="time" step="60" />
+        </div>
+
+        <div class="field">
+          <div class="field-main">
+            <span class="field-title">错过时间自动补签</span>
+            <span class="field-desc">开启后，若到点时电脑关机，开机后会补签当天一次</span>
+          </div>
+          <label class="switch slim">
+            <input id="catchup-input" type="checkbox" />
+            <span class="track"></span>
+          </label>
+        </div>
+
+        <div class="field">
+          <div class="field-main">
+            <span class="field-title">失败自动重试</span>
+            <span class="field-desc">网络抖动时自动重试最多 3 次，指数退避</span>
+          </div>
+          <label class="switch slim">
+            <input id="autoretry-input" type="checkbox" />
+            <span class="track"></span>
+          </label>
+        </div>
+
+        <div class="field">
+          <div class="field-main">
+            <span class="field-title">开机自动启动</span>
+            <span class="field-desc">登录系统后在托盘静默运行，不弹窗</span>
+          </div>
+          <label class="switch slim">
+            <input id="autolaunch-input" type="checkbox" />
+            <span class="track"></span>
+          </label>
+        </div>
+
+        <div class="field">
+          <div class="field-main">
+            <span class="field-title">关闭窗口时最小化到托盘</span>
+            <span class="field-desc">关闭后仍保持后台自动签到；关掉则关闭即退出</span>
+          </div>
+          <label class="switch slim">
+            <input id="closetotray-input" type="checkbox" />
+            <span class="track"></span>
+          </label>
+        </div>
+
+        <div class="field">
+          <div class="field-main">
+            <span class="field-title">桌面通知</span>
+            <span class="field-desc">定时/补签成功、凭证过期时弹出系统通知</span>
+          </div>
+          <label class="switch slim">
+            <input id="desktop-notify-input" type="checkbox" />
+            <span class="track"></span>
+          </label>
+        </div>
+
+        <div class="field">
+          <div class="field-main">
+            <span class="field-title">自动重试次数</span>
+            <span class="field-desc">签到失败后最多重试次数（1~5）</span>
+          </div>
+          <input id="max-retries-input" type="number" min="1" max="5" step="1" class="num-input" />
+        </div>
+
+        <div class="field">
+          <div class="field-main">
+            <span class="field-title">主题</span>
+            <span class="field-desc">跟随系统 / 浅色 / 深色</span>
+          </div>
+          <select id="theme-input" class="num-input">
+            <option value="system">跟随系统</option>
+            <option value="light">浅色</option>
+            <option value="dark">深色</option>
+          </select>
+        </div>
+
+        <div class="cred-note" id="cred-note">
+          登录凭证：<b id="cred-state">检查中…</b>
+          <span class="dim">设置不会修改或要求重新输入凭证</span>
+        </div>
+
+        <!-- 手机端同步：把桌面端凭证导出成一段码，手机网页端粘贴即用 -->
+        <div class="sync-box">
+          <div class="field-title">手机端同步</div>
+          <span class="field-desc">推荐用配对码：手机上只需输 8 个字符，不用粘几千字的长串（长串在手机上极易被截断而导致“登录态过期”）</span>
+          <div class="row sync-actions">
+            <button id="pair-btn" class="chip primary" type="button">生成配对码</button>
+            <button id="export-btn" class="chip" type="button">导出凭证码</button>
+            <button id="import-btn" class="chip" type="button">导入凭证码</button>
+          </div>
+          <div id="pair-result" class="pair-result hidden">
+            <div class="pair-code" id="pair-code-label">--------</div>
+            <div class="pair-tip" id="pair-tip">在手机端「登录凭证 → 用配对码同步」输入这 8 位码即可，10 分钟内有效、仅能领取一次</div>
+            <div class="row pair-actions">
+              <button id="pair-again-btn" class="chip" type="button">重新生成</button>
+              <button id="pair-copy-btn" class="chip" type="button">复制配对码</button>
+            </div>
+          </div>
+          <textarea id="sync-code" class="sync-code hidden" rows="3" readonly
+            placeholder="点「导出」生成凭证码；或从手机端复制凭证码后粘贴到此，再点「导入」"></textarea>
+        </div>
+
+        <div class="row">
+          <button id="save-settings-btn" class="btn">保存设置</button>
+        </div>
+        <p class="save-hint" id="settings-hint"></p>
+      </section>
+
+      <!-- 使用统计：手机端用配对码/凭证的情况（只统计领取与签到结果，不含凭证内容） -->
+      <section class="card panel hidden" id="stats-panel">
+        <div class="panel-head">
+          <h2>使用统计</h2>
+          <button id="close-stats-panel" class="link">关闭</button>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-cell">
+            <span class="num" id="st-devices">--</span>
+            <span class="lbl">使用人数</span>
+          </div>
+          <div class="stat-cell">
+            <span class="num" id="st-claims">--</span>
+            <span class="lbl">领取次数</span>
+          </div>
+          <div class="stat-cell">
+            <span class="num" id="st-codes">--</span>
+            <span class="lbl">已生成配对码</span>
+          </div>
+          <div class="stat-cell">
+            <span class="num" id="st-active">--</span>
+            <span class="lbl">近 24h 活跃</span>
+          </div>
+        </div>
+
+        <p class="stats-note" id="st-note">正在读取统计…</p>
+
+        <div class="stats-sub">
+          <span>设备使用情况</span>
+          <span class="stats-sub-tip">按设备去重</span>
+        </div>
+        <div class="usage-list" id="st-devices-list">
+          <p class="empty">加载中…</p>
+        </div>
+
+        <div class="stats-sub">
+          <span>最近配对码</span>
+          <span class="stats-sub-tip">10 分钟有效</span>
+        </div>
+        <div class="usage-list" id="st-codes-list">
+          <p class="empty">加载中…</p>
+        </div>
+
+        <div class="row stats-foot">
+          <button id="st-refresh-btn" class="chip">刷新</button>
+          <span class="logs-meta" id="st-updated"></span>
+        </div>
+        <p class="stats-privacy">
+          统计由手机端服务记录：只统计「配对码被领取」与「之后是否签到成功」，不记录凭证内容、
+          不记录完整 IP。<b>同一台手机换浏览器会算作两台设备。</b>
+        </p>
+      </section>
+
+      <!-- 运行日志 -->
+      <section class="card panel hidden" id="logs-panel">
+        <div class="panel-head">
+          <h2>运行日志</h2>
+          <button id="close-logs-panel" class="link">关闭</button>
+        </div>
+        <div class="logs-tools">
+          <button id="refresh-logs-btn" class="chip">刷新</button>
+          <button id="open-logs-btn" class="chip">打开文件夹</button>
+          <button id="clear-logs-btn" class="chip danger">清空</button>
+          <span class="logs-meta" id="logs-meta"></span>
+        </div>
+        <div class="logs" id="logs-list">
+          <p class="empty">暂无记录</p>
+        </div>
+      </section>
+
+      <!-- 登录凭证（与设置完全分开；仅在需要时手动打开） -->
+      <section class="card panel hidden" id="credential-panel">
+        <div class="panel-head">
+          <h2>登录凭证</h2>
+          <button id="close-credential" class="link">关闭</button>
+        </div>
+        <p class="hint">
+          <b>最快方式</b>：F12 → 网络 → 右键任意一条请求 → 复制 → <b>复制为 cURL</b>，
+          然后<b>把整段内容直接粘到下面</b>，程序会自动抽出 Cookie / Token。<br />
+          <span class="dim">
+            也支持只粘 <code>Authorization: Bearer …</code> 后面的 token，或 <code>k=v; k2=v2</code> 形式的 Cookie。
+          </span>
+        </p>
+        <label>
+          <span>登录凭证（Bearer token 或 Cookie）</span>
+          <textarea id="token-input" rows="3" placeholder="粘 eyJ... 开头的 token，或 k=v; k2=v2 形式的 Cookie"></textarea>
+        </label>
+        <label>
+          <span>uid（Cookie 方式可留空）</span>
+          <input id="uid-input" type="text" placeholder="你的用户 ID（X-User-Id）" />
+        </label>
+        <label>
+          <span>域名</span>
+          <input id="domain-input" type="text" value="www.codebuddy.cn" />
+        </label>
+        <div class="row">
+          <button id="save-btn" class="btn">保存凭证</button>
+        </div>
+        <p class="save-hint" id="credential-hint"></p>
+      </section>
+
+      <footer class="footer">数据仅保存在本机 · 自动签到需程序处于运行状态</footer>
+    </div>
+    <script src="renderer.js"></script>
+  </body>
+</html>

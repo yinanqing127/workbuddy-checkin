@@ -1,0 +1,30 @@
+# ---------- 依赖 ----------
+node_modules/
+.pnpm-store/
+
+# ---------- 构建产物（安装包走 GitHub Release，不入库）----------
+dist/
+dist_bak_*/
+*.blockmap
+
+# ---------- Android 工具链与中间产物（体积大，build.sh 可重新下载）----------
+apk-build/toolchain/
+apk-build/obj/
+apk-build/obj.jar
+apk-build/dexout/
+apk-build/res/
+apk-build/res.zip
+apk-build/app-unsigned.apk
+apk-build/app-aligned.apk
+apk-build/app-aligned.apk.idsig
+
+# ---------- 运行时数据 / 本地配置（可能含登录凭证，绝不入库）----------
+config.json
+mobile/.data/
+*.log
+logs/
+
+# ---------- 系统垃圾 ----------
+.DS_Store
+Thumbs.db
+desktop.ini
