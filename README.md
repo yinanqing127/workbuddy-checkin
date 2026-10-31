@@ -455,11 +455,11 @@ WorkBuddy 的签到接口（`www.codebuddy.cn`）**不返回 CORS 头**，手机
 - 产物：`apk-build/WorkBuddyCheckin-1.0.0.apk`（约 17KB，自包含）
 - 构建方式：用本仓 `apk-build/` 下的免安装工具链（JDK + Android build-tools + platform，均通过代理分块下载）手动 `aapt2`/`d8`/`apksigner` 组装，**不依赖 Android Studio**，也不依赖本机全局 Java 环境。
 - 本质：一个原生 Android 壳，内部用 WebView 加载已发布的手机端 PWA 地址（含同源代理，自动解决签到接口 CORS 问题）。
-- 签名：自带自签名密钥（`apk-build/upload-key.jks`），可直接侧载安装。
+- 签名：构建时用本机 `~/workbuddy-keys/upload-key.jks` 自签名，可直接侧载安装。
 
 ### 关于“管理入口：设置—数据管理—应用”
 这句话指的是**已发布的手机网页应用（PWA 链接）**在 WorkBuddy 平台里的管理位置，不是这个 APK 文件本身：
-- 进入 WorkBuddy 客户端/网页的「设置 → 数据管理 → 应用」，可以看到你通过“发布为应用”部署的手机端链接（即 `your-app.example.com`），在那里能查看、配置或下架该发布应用。
+- 进入 WorkBuddy 客户端/网页的「设置 → 数据管理 → 应用」，可以看到你通过“发布为应用”部署的手机端链接（形如 `https://<你的应用名>.app.workbuddy.host`），在那里能查看、配置或下架该发布应用。
 - APK 是你本地的安装文件，不受这个管理入口控制；要分发/重装直接用这个 .apk 文件即可。
 
 ### 手机上如何运行（APK 侧载）
@@ -661,7 +661,7 @@ Service Worker 注册也改为带参数，避免离线壳注册失败。
 | `main.js` / `preload.js` / `src/` | Electron 主进程、预加载桥、签到与配置核心（含本地 API 服务） |
 | `renderer/` | 桌面端界面（`index.html` / `renderer.js` / `styles.css`） |
 | `mobile/` | 手机端 PWA：`server.js` 同源代理、`public/` 前端、`src/proxy-core.js` 签到核心、`scripts/` 测试 |
-| `apk-build/` | Android WebView 壳：`MainActivity.java`、`AndroidManifest.xml`、`build.sh` 构建脚本、自签名密钥、成品 APK |
+| `apk-build/` | Android WebView 壳：`MainActivity.java`、`AndroidManifest.xml`、`build.sh` 构建脚本（密钥与本机地址走外部文件，见 15.4） |
 | `test/` | 桌面端逻辑 / 接口 / 配置 / 统计测试，`shot.js` 为 Electron 真实渲染截图断言 |
 | `build/installer.nsh` | NSIS 安装器自定义脚本（卸载时清理开机自启项） |
 
@@ -673,6 +673,9 @@ Service Worker 注册也改为带参数，避免离线壳注册失败。
 | `apk-build/toolchain/`、`obj/`、`dexout/`、`res/` | 免安装 Android 工具链（约 840 MB）与编译中间文件，`build.sh` 会自动重新下载解压 |
 | `config.json` | 本机配置，**含登录凭证 token**，绝不能提交 |
 | `mobile/.data/` | 手机端服务的运行时统计库 |
+| `src/local-endpoint.json`、`apk-build/local-url.txt` | 本机的部署地址与 sharecode |
+| `apk-build/*.jks`、`upload-key.jks`、`LocalConfig.java` | 签名密钥 / 密钥口令 / 由 `local-url.txt` 生成的编译产物 |
+| `apk-build/*.apk` | 成品 APK 内编着地址与 sharecode，且可随时重新构建 |
 
 安装包不入库，改为挂在 **Release v1.5.0** 的附件里：
 
@@ -692,8 +695,61 @@ npm run dist           # 打 Windows 安装包（产物在 dist/）
 cd mobile && npm start # 手机端服务（默认 3000 端口，需与桌面端错开或改 PORT）
 ```
 
-### 15.4 安全提示
+### 15.4 敏感信息怎么放（公开前的准备）
 
-`apk-build/upload-key.jks` 是自签名调试密钥，口令写在 `build.sh` 里（`YOUR_KS_PASS`）。
-保留它是为了让重新构建的 APK 能覆盖安装到已装的同款应用（签名一致才允许升级）。
-**如果以后想把仓库转为公开，请先删掉这个密钥文件与 `build.sh` 里的口令，并换一个新密钥重新签名。**
+仓库里**不含**任何私密值，本机用三份「不入库」的文件补齐：
+
+| 本机文件 | 内容 | 用途 |
+| --- | --- | --- |
+| `src/local-endpoint.json` | `{ "base": "你的部署地址", "share": "sharecode" }` | 配对码同步、使用统计的默认目标（也可用 `WB_MOBILE_BASE` / `WB_MOBILE_SHARE` 环境变量覆盖） |
+| `apk-build/local-url.txt` | 一行完整地址（含 sharecode） | `build.sh` 读取后生成 `LocalConfig.java`，编进 APK |
+| `~/workbuddy-keys/upload-key.jks` + `upload-key.pass` | 自签名密钥与口令 | APK 签名；`build.sh` 用 `WB_KS_PATH` / `WB_KS_PASS` 定位，找不到会直接报错退出 |
+
+首装自备这三样：
+
+```bash
+printf '{"base":"https://你的域名","share":"你的sharecode"}' > src/local-endpoint.json
+printf 'https://你的域名/?sharecode=你的sharecode' > apk-build/local-url.txt
+mkdir -p ~/workbuddy-keys    # 放入 upload-key.jks，口令写 upload-key.pass
+```
+
+APK 成品不入库（里面编着地址与 sharecode），走 Release 附件分发。
+
+---
+
+## 十六、把仓库转为公开的操作清单
+
+> 当前状态：**已私有**。敏感值已从工作区与全部历史中移除（密钥、部署地址、sharecode），
+> 只差最后一步「改可见性」。想公开时按下面顺序做。
+
+### 16.1 已完成（无需重做）
+
+1. 签名密钥移出仓库 → `~/workbuddy-keys/upload-key.jks` + `upload-key.pass`，`build.sh` 改读 `WB_KS_PATH` / `WB_KS_PASS`，缺失即报错退出。
+2. 部署地址与 sharecode 从 `src/config.js`、`MainActivity.java` 抽出 → `src/local-endpoint.json` 与 `apk-build/local-url.txt`（均已 `.gitignore`）。
+3. 成品 APK 停止入库（内编着 sharecode），只走 Release 附件。
+4. 用 `git filter-branch --tree-filter` 重写了**全部历史**：删掉密钥与 APK 文件、把历史里的旧域名与 sharecode 替换为占位符，随后 `gc --prune=now` 清理不可达对象。
+
+### 16.2 改为公开
+
+网页：仓库 → **Settings → General → Danger Zone → Change visibility → Make public**，按提示输入仓库名确认。
+
+命令行：
+
+```bash
+curl -X PATCH -H "Authorization: token <PAT>" \
+  -d '{"private":false}' \
+  https://api.github.com/repos/yinanqing127/workbuddy-checkin
+```
+
+### 16.3 公开后还剩的暴露面
+
+| 位置 | 情况 | 处理 |
+| --- | --- | --- |
+| Release 的 `Setup-1.5.0.exe` / `.apk` | 构建于脱敏之前，二进制里仍含旧域名与 sharecode（`strings` 可读） | 若要彻底干净：配好 15.4 的三份本地文件后重新 `npm run dist` 与 `build.sh`，删除旧附件、上传新产物 |
+| 旧提交对象 | 强推后已不可达，且仓库全程私有、从未被 fork | 无需处理；如需绝对保证可联系 GitHub Support 清理缓存视图 |
+| sharecode 本身 | 只是手机端代理的入口校验，泄露的后果是别人能借你的代理跑**他们自己的**签到（消耗你的配额） | 建议在手机端服务里换一个新 sharecode，并同步更新两份本地文件 |
+
+### 16.4 建议同时打开
+
+- Settings → **Code security**：Secret scanning、Push protection（防以后误提交 token）
+- Settings → Branches：给 `main` 加保护规则，禁止强推

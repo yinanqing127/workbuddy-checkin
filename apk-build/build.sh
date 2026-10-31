@@ -39,8 +39,16 @@ ZIPALIGN="$BT/zipalign.exe"
 ANDROID_JAR="$PLATFORM/android.jar"
 D8_JAR="$BT/lib/d8.jar"
 APKSIGNER_JAR="$BT/lib/apksigner.jar"
-KEY="$ROOT/upload-key.jks"
-KS_PASS="YOUR_KS_PASS"; ALIAS="wbcheckin"
+# 签名密钥不再入库：默认放在 ~/workbuddy-keys/，也可用 WB_KS_PATH 指定。
+# 口令同样外部提供：环境变量 WB_KS_PASS，或密钥同目录的 <密钥>.pass 文件。
+KEY="${WB_KS_PATH:-$HOME/workbuddy-keys/upload-key.jks}"
+ALIAS="${WB_KS_ALIAS:-wbcheckin}"
+KS_PASS="${WB_KS_PASS:-}"
+if [ -z "$KS_PASS" ] && [ -f "$KEY.pass" ]; then KS_PASS="$(cat "$KEY.pass")"; fi
+if [ -z "$KS_PASS" ]; then
+  echo "[FATAL] 未找到签名口令：请 export WB_KS_PASS=... 或写入 $KEY.pass"
+  exit 1
+fi
 
 echo "[*] 校验关键工具"
 for f in "$AAPT2" "$ZIPALIGN" "$ANDROID_JAR" "$D8_JAR" "$APKSIGNER_JAR" "$JAVA_BIN/javac" "$JAVA_BIN/keytool"; do
@@ -53,8 +61,29 @@ if [ ! -f "$ROOT/res/mipmap-hdpi/ic_launcher.png" ]; then node "$ROOT/gen_icons.
 rm -rf "$ROOT/obj" "$ROOT/obj.jar" "$ROOT/dexout" "$ROOT/res.zip" "$ROOT/app-unsigned.apk" "$ROOT/app-aligned.apk"
 mkdir -p "$ROOT/obj" "$ROOT/dexout"
 
+echo "[*] 生成本地地址配置（不入库）"
+# local-url.txt 里放你自己的部署地址；缺失时用占位符，保证源码可编译。
+URL_FILE="$ROOT/local-url.txt"
+if [ -f "$URL_FILE" ]; then
+  START_URL="$(tr -d '\r\n' < "$URL_FILE")"
+else
+  START_URL="https://your-app.example.com/?sharecode=YOUR_SHARECODE"
+  echo "    [!] 未找到 local-url.txt，使用占位地址（装到手机上会打不开）"
+fi
+LOCAL_CFG="$ROOT/src/com/workbuddy/checkin/LocalConfig.java"
+cat > "$LOCAL_CFG" <<EOF
+package com.workbuddy.checkin;
+
+// 由 build.sh 生成，请勿提交（内容随 local-url.txt 变化）
+public final class LocalConfig {
+    public static final String START_URL = "$START_URL";
+    private LocalConfig() {}
+}
+EOF
+
 echo "[*] 编译 MainActivity.java"
-"$JAVA_BIN/javac" -encoding UTF-8 -cp "$ANDROID_JAR" -d "$ROOT/obj" "$ROOT/src/com/workbuddy/checkin/MainActivity.java"
+"$JAVA_BIN/javac" -encoding UTF-8 -cp "$ANDROID_JAR" -d "$ROOT/obj" \
+  "$ROOT/src/com/workbuddy/checkin/MainActivity.java" "$LOCAL_CFG"
 
 echo "[*] 打包 class 为 jar"
 "$JAVA_BIN/jar" cf "$ROOT/obj.jar" -C "$ROOT/obj" .

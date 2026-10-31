@@ -12,9 +12,17 @@ const { runCheckin, fetchStatus } = require('./checkin');
 const DEFAULT_DOMAIN = 'www.codebuddy.cn';
 const DEFAULT_CHECKIN_TIME = '09:00';
 
-// 手机端已发布地址（配对码同步要用它当中转）。可用环境变量覆盖。
-const MOBILE_BASE = process.env.WB_MOBILE_BASE || 'https://your-app.example.com';
-const MOBILE_SHARE = process.env.WB_MOBILE_SHARE || 'YOUR_SHARECODE';
+// 手机端已发布地址（配对码同步要用它当中转）。
+// 取值优先级：环境变量 > src/local-endpoint.json（本机私有，不入库）> 空（功能降级）。
+// 这样仓库里不出现具体域名与 sharecode，本机装好后一切照常。
+let LOCAL_ENDPOINT = {};
+try {
+  LOCAL_ENDPOINT = require('./local-endpoint.json');
+} catch (_) {
+  LOCAL_ENDPOINT = {};
+}
+const MOBILE_BASE = process.env.WB_MOBILE_BASE || LOCAL_ENDPOINT.base || '';
+const MOBILE_SHARE = process.env.WB_MOBILE_SHARE || LOCAL_ENDPOINT.share || '';
 
 // 配对码字符集：去掉 0/O/1/I/L 等易混字符，8 位约 8.5e11 种组合
 const PAIR_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
@@ -405,6 +413,13 @@ function createApiServer({ port = 3000, configPath, onCheckinResult, onSettingsC
             sendJson(res, 400, { ok: false, error: '尚未配置登录凭证，无法生成配对码' });
             return;
           }
+          if (!MOBILE_BASE) {
+            sendJson(res, 400, {
+              ok: false,
+              error: '尚未配置手机端地址：请在 src/local-endpoint.json 填写 base/share，或设置 WB_MOBILE_BASE',
+            });
+            return;
+          }
           const pairCode = genPairCode();
           // 统计主体：首次生成配对码时创建，之后一直复用（不含任何个人信息）
           let ownerId = '';
@@ -517,8 +532,17 @@ function createApiServer({ port = 3000, configPath, onCheckinResult, onSettingsC
             exportCount: (cfg.usage && cfg.usage.exportCount) || 0,
             importCount: (cfg.usage && cfg.usage.importCount) || 0,
             hasToken: !!cfg.accessToken,
-            mobileUrl: `${MOBILE_BASE}/?sharecode=${encodeURIComponent(MOBILE_SHARE)}`,
+            mobileUrl: MOBILE_BASE ? `${MOBILE_BASE}/?sharecode=${encodeURIComponent(MOBILE_SHARE)}` : '',
           };
+          if (!MOBILE_BASE) {
+            sendJson(res, 200, {
+              ok: false,
+              local,
+              remote: null,
+              error: '尚未配置手机端地址：请在 src/local-endpoint.json 填写 base/share，或设置 WB_MOBILE_BASE',
+            });
+            return;
+          }
           if (!ownerId) {
             sendJson(res, 200, { ok: false, local, remote: null, error: '无法生成统计标识（配置目录不可写）' });
             return;

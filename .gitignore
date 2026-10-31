@@ -17,6 +17,15 @@ apk-build/res.zip
 apk-build/app-unsigned.apk
 apk-build/app-aligned.apk
 apk-build/app-aligned.apk.idsig
+# 成品 APK 含你的部署地址与 sharecode，不入库（走 Release 分发）
+apk-build/*.apk
+
+# ---------- 本机私有配置（含部署地址 / sharecode / 签名密钥，绝不入库）----------
+apk-build/upload-key.jks
+apk-build/*.jks
+apk-build/local-url.txt
+apk-build/src/com/workbuddy/checkin/LocalConfig.java
+src/local-endpoint.json
 
 # ---------- 运行时数据 / 本地配置（可能含登录凭证，绝不入库）----------
 config.json
